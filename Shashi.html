@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shashi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+        
+        #loginScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .cow-logo {
+            font-size: 120px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .game-title {
+            font-size: 48px;
+            color: white;
+            margin-bottom: 30px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+        }
+        
+        .code-input {
+            font-size: 24px;
+            padding: 15px 30px;
+            border: 3px solid white;
+            border-radius: 10px;
+            text-align: center;
+            letter-spacing: 5px;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.9);
+        }
+        
+        .error-msg {
+            color: #ff6b6b;
+            font-size: 16px;
+            min-height: 24px;
+            font-weight: bold;
+        }
+        
+        #gameScreen {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #90EE90;
+            cursor: crosshair;
+        }
+        
+        .hud {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        
+        .knife-slot {
+            width: 70px;
+            height: 70px;
+            background: rgba(0,0,0,0.7);
+            border: 3px solid #fff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .knife-slot:hover {
+            transform: scale(1.1);
+        }
+        
+        .knife-slot.active {
+            border-color: #ffd700;
+            box-shadow: 0 0 20px rgba(255,215,0,0.8);
+        }
+        
+        .knife-slot .damage {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-size: 12px;
+            color: #ff6b6b;
+            background: rgba(0,0,0,0.8);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        
+        .controls-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .joystick-container {
+            position: absolute;
+            bottom: 120px;
+            left: 50px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255,255,255,0.2);
+            border: 3px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            display: none;
+        }
+        
+        .joystick-handle {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.8);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        
+        .stab-button {
+            position: absolute;
+            bottom: 120px;
+            right: 50px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255,59,48,0.8);
+            border: 4px solid #fff;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            transition: transform 0.1s;
+        }
+        
+        .stab-button:active {
+            transform: scale(0.9);
+            background: rgba(255,59,48,1);
+        }
+        
+        @media (max-width: 768px), (pointer: coarse) {
+            .controls-info {
+                font-size: 12px;
+                padding: 10px;
+            }
+            .joystick-container, .stab-button {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen">
+        <div class="cow-logo">🐮</div>
+        <h1 class="game-title">SHASHI</h1>
+        <input type="password" 
+               class="code-input" 
+               id="codeInput" 
+               placeholder="Enter Code"
+               maxlength="4">
+        <div class="error-msg" id="errorMsg"></div>
+    </div>
+    
+    <!-- Game Screen -->
+    <div id="gameScreen">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div class="controls-info">
+            <strong>CONTROLS:</strong><br>
+            W - Move Forward<br>
+            A - Move Left<br>
+            S - Move Backward<br>
+            D - Move Right<br>
+            Left Click - Stab<br>
+            1-5 - Select Knife<br>
+            <span style="color: #ffd700;">📱 Touch: Use joystick & stab button</span>
+        </div>
+        
+        <!-- Touch Controls -->
+        <div class="joystick-container" id="joystick">
+            <div class="joystick-handle" id="joystickHandle"></div>
+        </div>
+        
+        <div class="stab-button" id="stabButton">🔪</div>
+        
+        <div class="hud" id="knifeBar">
+            <!-- Knife slots will be generated here -->
+        </div>
+    </div>
+
+    <script>
+        const CORRECT_CODE = '6776';
+        
+        // Login functionality
+        const codeInput = document.getElementById('codeInput');
+        const errorMsg = document.getElementById('errorMsg');
+        const loginScreen = document.getElementById('loginScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        
+        codeInput.addEventListener('input', (e) => {
+            if (e.target.value.length === 4) {
+                if (e.target.value === CORRECT_CODE) {
+                    loginScreen.style.display = 'none';
+                    gameScreen.style.display = 'block';
+                    initGame();
+                } else {
+                    errorMsg.textContent = 'Invalid Code!';
+                    e.target.value = '';
+                    setTimeout(() => {
+                        errorMsg.textContent = '';
+                    }, 2000);
+                }
+            }
+        });
+        
+        // Game variables
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let activeKnife = 0;
+        let isStabbing = false;
+        let stabProgress = 0;
+        let score = 0;
+        
+        const player = {
+            x: 400,
+            y: 300,
+            size: 30,
+            speed: 3
+        };
+        
+        const keys = {};
+        
+        // Touch controls
+        const joystick = {
+            active: false,
+            x: 0,
+            y: 0,
+            baseX: 0,
+            baseY: 0
+        };
+        
+        const knives = [
+            { damage: 1, emoji: '🔪' },
+            { damage: 1, emoji: '🔪' },
+            { damage: 1, emoji: '🔪' },
+            { damage: 1, emoji: '🔪' },
+            { damage: 1, emoji: '🔪' }
+        ];
+        
+        // Enemy system
+        const enemies = [];
+        let enemySpawnTimer = 0;
+        const ENEMY_SPAWN_INTERVAL = 120; // frames
+        
+        class Enemy {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 25;
+                this.health = 5;
+                this.maxHealth = 5;
+                this.speed = 1;
+                this.hitCooldown = 0;
+            }
+            
+            update() {
+                // Move towards player
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 50) {
+                    this.x += (dx / dist) * this.speed;
+                    this.y += (dy / dist) * this.speed;
+                }
+                
+                if (this.hitCooldown > 0) this.hitCooldown--;
+            }
+            
+            draw() {
+                // Enemy body (AI assistant look)
+                ctx.fillStyle = '#9b59b6';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // AI eyes
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(this.x - 8, this.y - 5, 4, 0, Math.PI * 2);
+                ctx.arc(this.x + 8, this.y - 5, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(this.x - 8, this.y - 5, 2, 0, Math.PI * 2);
+                ctx.arc(this.x + 8, this.y - 5, 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw "AI" text
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('AI', this.x, this.y + 4);
+                
+                // Health bar
+                const barWidth = 40;
+                const barHeight = 4;
+                const healthPercent = this.health / this.maxHealth;
+                
+                ctx.fillStyle = '#000';
+                ctx.fillRect(this.x - barWidth/2, this.y - this.size - 10, barWidth, barHeight);
+                
+                ctx.fillStyle = this.health > 2 ? '#2ecc71' : '#e74c3c';
+                ctx.fillRect(this.x - barWidth/2, this.y - this.size - 10, barWidth * healthPercent, barHeight);
+                
+                ctx.textAlign = 'left';
+            }
+            
+            takeDamage(damage) {
+                if (this.hitCooldown > 0) return false;
+                this.health -= damage;
+                this.hitCooldown = 30;
+                return true;
+            }
+            
+            isDead() {
+                return this.health <= 0;
+            }
+        }
+        
+        function initGame() {
+            // Set canvas size
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Create knife slots
+            const knifeBar = document.getElementById('knifeBar');
+            knives.forEach((knife, index) => {
+                const slot = document.createElement('div');
+                slot.className = 'knife-slot';
+                if (index === 0) slot.classList.add('active');
+                slot.innerHTML = `
+                    ${knife.emoji}
+                    <span class="damage">${knife.damage} DMG</span>
+                `;
+                slot.addEventListener('click', () => selectKnife(index));
+                knifeBar.appendChild(slot);
+            });
+            
+            // Event listeners
+            window.addEventListener('keydown', (e) => {
+                keys[e.key.toLowerCase()] = true;
+                
+                // Number keys for knife selection
+                if (e.key >= '1' && e.key <= '5') {
+                    selectKnife(parseInt(e.key) - 1);
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                keys[e.key.toLowerCase()] = false;
+            });
+            
+            canvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0) { // Left click
+                    performStab();
+                }
+            });
+            
+            // Touch controls
+            const joystickElement = document.getElementById('joystick');
+            const joystickHandle = document.getElementById('joystickHandle');
+            const stabButton = document.getElementById('stabButton');
+            
+            // Joystick touch handling
+            joystickElement.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                joystick.active = true;
+                const rect = joystickElement.getBoundingClientRect();
+                joystick.baseX = rect.left + rect.width / 2;
+                joystick.baseY = rect.top + rect.height / 2;
+                updateJoystick(e.touches[0]);
+            });
+            
+            joystickElement.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (joystick.active) {
+                    updateJoystick(e.touches[0]);
+                }
+            });
+            
+            joystickElement.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                joystick.active = false;
+                joystick.x = 0;
+                joystick.y = 0;
+                joystickHandle.style.transform = 'translate(-50%, -50%)';
+            });
+            
+            // Stab button
+            stabButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                performStab();
+            });
+            
+            // Prevent default touch behavior on canvas
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+            });
+            
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            });
+            
+            gameLoop();
+        }
+        
+        function selectKnife(index) {
+            activeKnife = index;
+            document.querySelectorAll('.knife-slot').forEach((slot, i) => {
+                slot.classList.toggle('active', i === index);
+            });
+        }
+        
+        function updateJoystick(touch) {
+            const dx = touch.clientX - joystick.baseX;
+            const dy = touch.clientY - joystick.baseY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const maxDistance = 35;
+            
+            if (distance < maxDistance) {
+                joystick.x = dx / maxDistance;
+                joystick.y = dy / maxDistance;
+                joystickHandle.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            } else {
+                const angle = Math.atan2(dy, dx);
+                joystick.x = Math.cos(angle);
+                joystick.y = Math.sin(angle);
+                joystickHandle.style.transform = `translate(calc(-50% + ${Math.cos(angle) * maxDistance}px), calc(-50% + ${Math.sin(angle) * maxDistance}px))`;
+            }
+        }
+        
+        function performStab() {
+            if (isStabbing) return;
+            isStabbing = true;
+            stabProgress = 0;
+            
+            // Check for enemy hits
+            const stabReach = player.size + 50;
+            enemies.forEach(enemy => {
+                const dx = enemy.x - player.x;
+                const dy = enemy.y - player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < stabReach) {
+                    if (enemy.takeDamage(knives[activeKnife].damage)) {
+                        // Play hit effect
+                    }
+                }
+            });
+        }
+        
+        function spawnEnemy() {
+            const side = Math.floor(Math.random() * 4);
+            let x, y;
+            
+            switch(side) {
+                case 0: // top
+                    x = Math.random() * canvas.width;
+                    y = -30;
+                    break;
+                case 1: // right
+                    x = canvas.width + 30;
+                    y = Math.random() * canvas.height;
+                    break;
+                case 2: // bottom
+                    x = Math.random() * canvas.width;
+                    y = canvas.height + 30;
+                    break;
+                case 3: // left
+                    x = -30;
+                    y = Math.random() * canvas.height;
+                    break;
+            }
+            
+            enemies.push(new Enemy(x, y));
+        }
+        
+        function updatePlayer() {
+            // Keyboard movement
+            if (keys['w']) player.y -= player.speed;
+            if (keys['s']) player.y += player.speed;
+            if (keys['a']) player.x -= player.speed;
+            if (keys['d']) player.x += player.speed;
+            
+            // Touch joystick movement
+            if (joystick.active) {
+                player.x += joystick.x * player.speed;
+                player.y += joystick.y * player.speed;
+            }
+            
+            // Keep player in bounds
+            player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
+            player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+            
+            // Stabbing animation
+            if (isStabbing) {
+                stabProgress += 0.15;
+                if (stabProgress >= 1) {
+                    isStabbing = false;
+                    stabProgress = 0;
+                }
+            }
+            
+            // Update enemies
+            enemies.forEach(enemy => enemy.update());
+            
+            // Remove dead enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                if (enemies[i].isDead()) {
+                    enemies.splice(i, 1);
+                    score++;
+                }
+            }
+            
+            // Spawn enemies
+            enemySpawnTimer++;
+            if (enemySpawnTimer >= ENEMY_SPAWN_INTERVAL) {
+                spawnEnemy();
+                enemySpawnTimer = 0;
+            }
+        }
+        
+        function draw() {
+            // Clear canvas with green background
+            ctx.fillStyle = '#90EE90';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grass texture
+            ctx.fillStyle = '#7EC850';
+            for (let i = 0; i < 50; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                ctx.fillRect(x, y, 2, 8);
+            }
+            
+            // Draw enemies
+            enemies.forEach(enemy => enemy.draw());
+            
+            // Draw player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            
+            // Player body
+            ctx.fillStyle = '#4a90e2';
+            ctx.beginPath();
+            ctx.arc(0, 0, player.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw knife
+            const stabOffset = isStabbing ? Math.sin(stabProgress * Math.PI) * 20 : 0;
+            ctx.fillStyle = '#c0c0c0';
+            ctx.fillRect(player.size + stabOffset, -3, 30, 6);
+            ctx.fillStyle = '#8b4513';
+            ctx.fillRect(player.size + 30 + stabOffset, -5, 10, 10);
+            
+            ctx.restore();
+            
+            // Draw damage text when stabbing
+            if (isStabbing && stabProgress < 0.5) {
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`-${knives[activeKnife].damage}`, player.x + player.size + 40, player.y - 20);
+                ctx.textAlign = 'left';
+            }
+            
+            // Draw score
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 24px Arial';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.strokeText(`Score: ${score}`, canvas.width - 150, 40);
+            ctx.fillText(`Score: ${score}`, canvas.width - 150, 40);
+            
+            ctx.fillText(`Enemies: ${enemies.length}`, canvas.width - 150, 70);
+            ctx.strokeText(`Enemies: ${enemies.length}`, canvas.width - 150, 70);
+        }
+        
+        function gameLoop() {
+            updatePlayer();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
